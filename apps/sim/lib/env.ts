@@ -249,6 +249,7 @@ export const env = createEnv({
 
   client: {
     NEXT_PUBLIC_VTX_SA:                    z.string().min(32),                     // Vertex service account
+    NEXT_PUBLIC_HELICONE_SA:               z.string().min(32),                     // Vertex service account
 
     // Core Application URLs - Required for frontend functionality
     NEXT_PUBLIC_APP_URL:                   z.string().url(),                       // Base URL of the application (e.g., https://app.sim.ai)
