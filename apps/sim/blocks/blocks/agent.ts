@@ -171,8 +171,6 @@ Create a system prompt appropriately detailed for the request, using clear langu
         return allModels.map((model) => {
           const icon = getProviderIcon(model)
           return { label: model, id: model, ...(icon && { icon }) }
-        }).filter((model) => {
-          return ['gemini-2.5-flash', 'gemini-2.5-flash-lite','gemini-2.0-flash', 'gemini-2.0-flash'].includes(model.label)
         })
       },
     },
