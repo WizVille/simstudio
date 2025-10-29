@@ -40,7 +40,7 @@ export const ChatInput: React.FC<{
 
   // Check if speech-to-text is available in the browser
   const isSttAvailable =
-    typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+    typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition) && false
 
   // Function to adjust textarea height
   const adjustTextareaHeight = () => {

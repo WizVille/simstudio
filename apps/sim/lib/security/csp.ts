@@ -98,8 +98,7 @@ export const buildTimeCSPDirectives: CSPDirectives = {
   ],
 
   'frame-src': ['https://drive.google.com', 'https://docs.google.com', 'https://*.google.com'],
-
-  'frame-ancestors': ["'self'"],
+  'frame-ancestors': ["'self'", 'http://localhost:3000','http://localhost:3000','http://app.wizville.localhost:3000','http://admin.wizville.localhost:3000','https://app.wizville-dev.fr','https://app.wizville-staging.fr','https://app.wizville-preprod.fr','https://admin.wizville.fr','https://admin.wizville-dev.fr','https://admin.wizville-staging.fr','https://admin.wizville-preprod.fr','https://admin.wizville.fr'],
   'form-action': ["'self'"],
   'base-uri': ["'self'"],
   'object-src': ["'none'"],
@@ -156,7 +155,7 @@ export function generateRuntimeCSP(): string {
     font-src 'self' https://fonts.gstatic.com;
     connect-src 'self' ${appUrl} ${ollamaUrl} ${socketUrl} ${socketWsUrl} https://api.browser-use.com https://api.exa.ai https://api.firecrawl.dev https://*.googleapis.com https://*.amazonaws.com https://*.s3.amazonaws.com https://*.blob.core.windows.net https://api.github.com https://github.com/* https://*.atlassian.com https://*.supabase.co ${dynamicDomainsStr};
     frame-src https://drive.google.com https://docs.google.com https://*.google.com;
-    frame-ancestors 'self';
+    frame-ancestors 'self' http://localhost:3000 http://app.wizville.localhost:3000 http://admin.wizville.localhost:3000 https://app.wizville-dev.fr https://app.wizville-staging.fr https://app.wizville-preprod.fr https://admin.wizville.fr https://admin.wizville-dev.fr https://admin.wizville-staging.fr https://admin.wizville-preprod.fr https://admin.wizville.fr;
     form-action 'self';
     base-uri 'self';
     object-src 'none';

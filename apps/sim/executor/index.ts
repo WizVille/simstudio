@@ -939,6 +939,7 @@ export class Executor {
             starterOutput = {
               input: this.workflowInput?.input || '',
               conversationId: this.workflowInput?.conversationId || '',
+              context: this.workflowInput?.workflowVariables || ''
             }
 
             if (this.workflowInput?.files && Array.isArray(this.workflowInput.files)) {
@@ -977,6 +978,7 @@ export class Executor {
                 starterOutput = {
                   input: this.workflowInput.input,
                   conversationId: this.workflowInput.conversationId,
+                  context: this.workflowInput.workflowVariables
                 }
 
                 // Add files if present
@@ -1022,6 +1024,7 @@ export class Executor {
             blockOutput = {
               input: this.workflowInput.input,
               conversationId: this.workflowInput.conversationId,
+              context: this.workflowInput.workflowVariables
             }
 
             // Add files if present

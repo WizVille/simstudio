@@ -644,7 +644,7 @@ export function getApiKey(provider: string, model: string, userProvidedKey?: str
   }
 
   // For all other cases, require user-provided key
-  if (!hasUserKey) {
+  if (!hasUserKey && !['gemini-2.5-flash', 'gemini-2.5-flash-lite','gemini-2.0-flash', 'gemini-2.0-flash', 'azure/gpt-4o', 'azure/gpt-5-nano', 'azure/gpt-4.1'].includes(model)) {
     throw new Error(`API key is required for ${provider} ${model}`)
   }
 

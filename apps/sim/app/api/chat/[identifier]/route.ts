@@ -76,7 +76,7 @@ export async function POST(
     }
 
     // Use the already parsed body
-    const { input, password, email, conversationId, files } = parsedBody
+    const { input, password, email, conversationId, files, workflowVariables } = parsedBody
 
     // If this is an authentication request (has password or email but no input),
     // set auth cookie and return success
@@ -144,7 +144,7 @@ export async function POST(
       // Generate executionId early so it can be used for file uploads and workflow execution
       const executionId = crypto.randomUUID()
 
-      const workflowInput: any = { input, conversationId }
+      const workflowInput: any = { input, conversationId, workflowVariables }
       if (files && Array.isArray(files) && files.length > 0) {
         logger.debug(`[${requestId}] Processing ${files.length} attached files`)
 

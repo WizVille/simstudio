@@ -84,9 +84,24 @@ export const azureOpenAIProvider: ProviderConfig = {
 
     // Extract Azure-specific configuration from request or environment
     // Priority: request parameters > environment variables
-    const azureEndpoint = request.azureEndpoint || env.AZURE_OPENAI_ENDPOINT
-    const azureApiVersion =
+    let azureEndpoint = request.azureEndpoint || env.AZURE_OPENAI_ENDPOINT
+    let azureApiVersion =
       request.azureApiVersion || env.AZURE_OPENAI_API_VERSION || '2024-07-01-preview'
+
+    const heliconeBaseUrl = "https://oai.helicone.ai"
+    const azureBaseUrl = "https://wizvilleopenai-sweden.cognitiveservices.azure.com"
+    const baseUrl = heliconeBaseUrl
+
+    if (request.model == 'azure/gpt-4o') {
+      azureEndpoint = `${baseUrl}/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview`
+    } else if (request.model == 'azure/gpt-5-nano') {
+      azureEndpoint = `${baseUrl}/openai/deployments/gpt-5-nano/chat/completions?api-version=2025-01-01-preview`
+      azureApiVersion = "2025-01-01-preview"
+    } else if (request.model == 'azure/gpt-4.1') {
+      azureEndpoint = `${baseUrl}/openai/deployments/gpt-4.1/chat/completions?api-version=2025-01-01-preview`
+      azureApiVersion = "2025-01-01-preview"
+    }
+
 
     if (!azureEndpoint) {
       throw new Error(
@@ -94,11 +109,37 @@ export const azureOpenAIProvider: ProviderConfig = {
       )
     }
 
+    let headers = {
+      'Helicone-Auth': `Bearer ${env.NEXT_PUBLIC_HELICONE_SA}`,
+      'Helicone-OpenAI-Api-Base': azureBaseUrl,
+      'Helicone-User-Id': 'sandbox',
+      'api-key': request.apiKey
+    };
+
+    const heliconeHeaders = Object.values(request?.workflowVariables || {}).reduce((acc, variable) => {
+      if (variable.name.startsWith('helicone')) {
+        acc[variable.name.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-')] = variable.value
+        return acc;
+      }
+    }, {})
+
+    headers = { ...headers, ...heliconeHeaders }
+
+    const conversationId = findValueByKey(request.blockData, "conversationId")
+    if (conversationId) {
+      headers = { ...headers, ...{
+        "Helicone-Session-Id": conversationId,
+        "Helicone-Session-Path": "/chat",
+        "Helicone-Session-Name": `${headers['Helicone-User-Id'] || 'sandbox'}`
+      } }
+    }
+
     // API key is now handled server-side before this function is called
     const azureOpenAI = new AzureOpenAI({
       apiKey: request.apiKey,
       apiVersion: azureApiVersion,
       endpoint: azureEndpoint,
+      defaultHeaders: headers
     })
 
     // Start with an empty array for all messages
@@ -647,4 +688,31 @@ export const azureOpenAIProvider: ProviderConfig = {
       throw enhancedError
     }
   },
+}
+
+function findValueByKey(obj, keyToFind) {
+  // Check if obj is not an object or is null, or is an array
+  // (We handle array elements in the loop)
+  if (typeof obj !== 'object' || obj === null) {
+    return undefined;
+  }
+
+  // Base case: Check if the key exists in the current object
+  if (keyToFind in obj) {
+    return obj[keyToFind];
+  }
+
+  // Recursive step: Iterate over all values (for objects) or elements (for arrays)
+  for (const value of Object.values(obj)) {
+    // Recurse into the nested value
+    const result = findValueByKey(value, keyToFind);
+
+    // If the recursive call found the value, return it immediately
+    if (result !== undefined) {
+      return result;
+    }
+  }
+
+  // Not found in this object or any of its children
+  return undefined;
 }

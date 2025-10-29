@@ -490,6 +490,30 @@ export const PROVIDER_DEFINITIONS: Record<string, ProviderDefinition> = {
           temperature: { min: 0, max: 2 },
         },
       },
+      {
+        id: 'gemini-2.5-flash-lite',
+        pricing: {
+          input: 0.075,         // per 1M tokens
+          cachedInput: 0.0375,  // per 1M cached tokens
+          output: 0.30,         // per 1M tokens
+          updatedAt: '2025-10-28',
+        },
+        capabilities: {
+          temperature: { min: 0, max: 2 },
+        },
+      },
+      {
+        id: 'gemini-2.0-flash',
+        pricing: {
+          input: 0.075,
+          cachedInput: 0.0375,
+          output: 0.30,
+          updatedAt: '2025-10-28',
+        },
+        capabilities: {
+          temperature: { min: 0, max: 2 },
+        },
+      }
     ],
   },
   deepseek: {
@@ -1078,7 +1102,7 @@ export function getProvidersWithToolUsageControl(): string[] {
  */
 export function getHostedModels(): string[] {
   // Currently, OpenAI and Anthropic models are hosted
-  return [...getProviderModels('openai'), ...getProviderModels('anthropic')]
+  return [...getProviderModels('google'),...getProviderModels('azure-openai'),...getProviderModels('openai'), ...getProviderModels('anthropic')]
 }
 
 /**
