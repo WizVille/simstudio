@@ -167,10 +167,11 @@ Create a system prompt appropriately detailed for the request, using clear langu
         const ollamaModels = providersState.providers.ollama.models
         const openrouterModels = providersState.providers.openrouter.models
         const allModels = Array.from(new Set([...baseModels, ...ollamaModels, ...openrouterModels]))
-
         return allModels.map((model) => {
           const icon = getProviderIcon(model)
           return { label: model, id: model, ...(icon && { icon }) }
+        }).filter((model) => {
+          return ['gemini-2.5-flash', 'gemini-2.5-flash-lite','gemini-2.0-flash', 'gemini-2.0-flash'].includes(model.label)
         })
       },
     },
