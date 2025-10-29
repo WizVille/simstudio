@@ -13,6 +13,7 @@ import {
   trackForcedToolUsage,
 } from '@/providers/utils'
 import { executeTool } from '@/tools'
+import { env } from '@/lib/env'
 
 const logger = createLogger('GoogleProvider')
 
@@ -218,9 +219,9 @@ export const googleProvider: ProviderConfig = {
   executeRequest: async (
     request: ProviderRequest
   ): Promise<ProviderResponse | StreamingExecution> => {
-    if (!request.apiKey) {
-      throw new Error('API key is required for Google Gemini')
-    }
+    // if (!request.apiKey) {
+    //   throw new Error('API key is required for Google Gemini')
+    // }
 
     logger.info('Preparing Google Gemini request', {
       model: request.model || 'gemini-2.5-pro',
@@ -320,10 +321,81 @@ export const googleProvider: ProviderConfig = {
       // Only enable streaming for the final response after tool execution
       const shouldStream = request.stream && !tools?.length
 
-      // Use streamGenerateContent for streaming requests
+      const baseUrl = "https://europe-west9-aiplatform.googleapis.com"
+      const heliconeBaseUrl = "https://gateway.helicone.ai"
+
+      const generateContentEndpoint = `${baseUrl}/v1/projects/wizville-2014/locations/europe-west9/publishers/google/models/${requestedModel}:generateContent`
+      const streamGenerateContentEndpoint = `${baseUrl}/v1/projects/wizville-2014/locations/europe-west9/publishers/google/models/${requestedModel}:streamGenerateContent`
+      // Get fresh access token from service account
+      const getAccessToken = async (): Promise<string> => {
+        try {
+          const serviceAccount = JSON.parse(atob(env.NEXT_PUBLIC_VTX_SA.split("").reverse().join("")));
+
+          const now = Math.floor(Date.now() / 1000)
+          const payload = {
+            iss: serviceAccount.client_email,
+            scope: 'https://www.googleapis.com/auth/cloud-platform',
+            aud: serviceAccount.token_uri,
+            exp: now + 3600,
+            iat: now
+          }
+
+          // Create JWT header
+          const header = {
+            alg: 'RS256',
+            typ: 'JWT'
+          }
+
+          // Simple base64url encoding
+          const base64UrlEncode = (obj: any) => {
+            return Buffer.from(JSON.stringify(obj))
+              .toString('base64')
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=/g, '')
+          }
+
+          const headerEncoded = base64UrlEncode(header)
+          const payloadEncoded = base64UrlEncode(payload)
+          const unsigned = `${headerEncoded}.${payloadEncoded}`
+
+          // Sign with private key (simplified - in production use proper crypto library)
+          const crypto = require('crypto')
+          const signature = crypto
+            .createSign('RSA-SHA256')
+            .update(unsigned)
+            .sign(serviceAccount.private_key, 'base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '')
+
+          const jwt = `${unsigned}.${signature}`
+
+          // Exchange JWT for access token
+          const tokenResponse = await fetch(serviceAccount.token_uri, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+              grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+              assertion: jwt
+            })
+          })
+
+          const tokenData = await tokenResponse.json()
+          return tokenData.access_token
+        } catch (error) {
+          logger.error('Failed to get access token:', error)
+          throw error
+        }
+      }
+
+      const accessToken = await getAccessToken()
+
       const endpoint = shouldStream
-        ? `https://generativelanguage.googleapis.com/v1beta/models/${requestedModel}:streamGenerateContent?key=${request.apiKey}`
-        : `https://generativelanguage.googleapis.com/v1beta/models/${requestedModel}:generateContent?key=${request.apiKey}`
+        ? streamGenerateContentEndpoint
+        : generateContentEndpoint
 
       if (request.stream && tools?.length) {
         logger.info('Streaming disabled for initial request due to tools presence', {
@@ -332,16 +404,27 @@ export const googleProvider: ProviderConfig = {
         })
       }
 
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'Helicone-Auth': 'Bearer sk-helicone-eu-ywttq6y-h5xuvwi-umfcg2q-mtb6psi',
+        'Helicone-Target-URL': 'https://europe-west9-aiplatform.googleapis.com',
+        'User-Agent': 'node-fetch'
+      };
+
+      // payload.generationConfig.maxOutputTokens = 1000;
+      payload.generationConfig.thinkingConfig = { thinkingBudget: 0 }
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify(payload),
       })
 
+
       if (!response.ok) {
         const responseText = await response.text()
+
         logger.error('Gemini API error details:', {
           status: response.status,
           statusText: response.statusText,
@@ -406,7 +489,6 @@ export const googleProvider: ProviderConfig = {
       }
 
       let geminiResponse = await response.json()
-
       // Check structured output format
       if (payload.generationConfig?.responseSchema) {
         const candidate = geminiResponse.candidates?.[0]
@@ -650,12 +732,10 @@ export const googleProvider: ProviderConfig = {
                   checkPayload.stream = undefined
 
                   const checkResponse = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/${requestedModel}:generateContent?key=${request.apiKey}`,
+                    generateContentEndpoint,
                     {
                       method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
+                      headers: headers,
                       body: JSON.stringify(checkPayload),
                     }
                   )
@@ -720,12 +800,10 @@ export const googleProvider: ProviderConfig = {
 
                   // Make the streaming request with streamGenerateContent endpoint
                   const streamingResponse = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/${requestedModel}:streamGenerateContent?key=${request.apiKey}`,
+                    streamGenerateContentEndpoint,
                     {
                       method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
+                      headers: headers,
                       body: JSON.stringify(streamingPayload),
                     }
                   )
@@ -838,12 +916,10 @@ export const googleProvider: ProviderConfig = {
                 }
 
                 const nextResponse = await fetch(
-                  `https://generativelanguage.googleapis.com/v1beta/models/${requestedModel}:generateContent?key=${request.apiKey}`,
+                  generateContentEndpoint,
                   {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
+                    headers: headers,
                     body: JSON.stringify(nextPayload),
                   }
                 )
