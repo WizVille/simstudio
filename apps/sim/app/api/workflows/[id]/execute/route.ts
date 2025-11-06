@@ -284,12 +284,14 @@ export async function executeWorkflow(
 
     const workflowVariables = (workflow.variables as Record<string, any>) || {}
 
-    Object.entries(input.context).forEach(([key, value]) => {
-      const workflowVariableContext =  Object.values(workflowVariables).find(item => item.name === key)
-      if (workflowVariableContext) {
-        workflowVariableContext.value = value
-      }
-    })
+    if (input?.context) {
+      Object.entries(input.context).forEach(([key, value]) => {
+        const workflowVariableContext =  Object.values(workflowVariables).find(item => item.name === key)
+        if (workflowVariableContext) {
+          workflowVariableContext.value = value
+        }
+      })
+    }
 
     if (Object.keys(workflowVariables).length > 0) {
       logger.debug(
