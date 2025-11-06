@@ -171,7 +171,7 @@ Create a system prompt appropriately detailed for the request, using clear langu
           const icon = getProviderIcon(model)
           return { label: model, id: model, ...(icon && { icon }) }
         }).filter((model) => {
-          return ['gemini-2.5-flash', 'gemini-2.5-flash-lite','gemini-2.0-flash', 'gemini-2.0-flash'].includes(model.label)
+          return ['gemini-2.5-flash', 'gemini-2.5-flash-lite','gemini-2.0-flash', 'gemini-2.0-flash', 'azure/gpt-4o', 'azure/gpt-5-nano', 'azure/gpt-4.1'].includes(model.label)
         })
       },
     },
@@ -278,7 +278,7 @@ Create a system prompt appropriately detailed for the request, using clear langu
       connectionDroppable: false,
       condition: {
         field: 'model',
-        value: providers['azure-openai'].models,
+        value: providers['openai'].models,
       },
     },
     {
@@ -290,7 +290,7 @@ Create a system prompt appropriately detailed for the request, using clear langu
       connectionDroppable: false,
       condition: {
         field: 'model',
-        value: providers['azure-openai'].models,
+        value: providers['openai'].models,
       },
     },
     {

@@ -84,9 +84,24 @@ export const azureOpenAIProvider: ProviderConfig = {
 
     // Extract Azure-specific configuration from request or environment
     // Priority: request parameters > environment variables
-    const azureEndpoint = request.azureEndpoint || env.AZURE_OPENAI_ENDPOINT
-    const azureApiVersion =
+    let azureEndpoint = request.azureEndpoint || env.AZURE_OPENAI_ENDPOINT
+    let azureApiVersion =
       request.azureApiVersion || env.AZURE_OPENAI_API_VERSION || '2024-07-01-preview'
+
+    const heliconeBaseUrl = "https://oai.helicone.ai"
+    const azureBaseUrl = "https://wizvilleopenai-sweden.cognitiveservices.azure.com"
+    const baseUrl = heliconeBaseUrl
+
+    if (request.model == 'azure/gpt-4o') {
+      azureEndpoint = `${baseUrl}/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview`
+    } else if (request.model == 'azure/gpt-5-nano') {
+      azureEndpoint = `${baseUrl}/openai/deployments/gpt-5-nano/chat/completions?api-version=2025-01-01-preview`
+      azureApiVersion = "2025-01-01-preview"
+    } else if (request.model == 'azure/gpt-4.1') {
+      azureEndpoint = `${baseUrl}/openai/deployments/gpt-4.1/chat/completions?api-version=2025-01-01-preview`
+      azureApiVersion = "2025-01-01-preview"
+    }
+
 
     if (!azureEndpoint) {
       throw new Error(
@@ -99,6 +114,11 @@ export const azureOpenAIProvider: ProviderConfig = {
       apiKey: request.apiKey,
       apiVersion: azureApiVersion,
       endpoint: azureEndpoint,
+      defaultHeaders: {
+        'Helicone-Auth': `Bearer ${env.NEXT_PUBLIC_HELICONE_SA}`,
+        'Helicone-OpenAI-Api-Base': azureBaseUrl,
+        'api-key': request.apiKey
+      }
     })
 
     // Start with an empty array for all messages

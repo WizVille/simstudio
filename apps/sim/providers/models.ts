@@ -1102,7 +1102,7 @@ export function getProvidersWithToolUsageControl(): string[] {
  */
 export function getHostedModels(): string[] {
   // Currently, OpenAI and Anthropic models are hosted
-  return [...getProviderModels('google'),...getProviderModels('openai'), ...getProviderModels('anthropic')]
+  return [...getProviderModels('google'),...getProviderModels('azure-openai'),...getProviderModels('openai'), ...getProviderModels('anthropic')]
 }
 
 /**
