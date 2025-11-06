@@ -222,9 +222,12 @@ export const googleProvider: ProviderConfig = {
     // if (!request.apiKey) {
     //   throw new Error('API key is required for Google Gemini')
     // }
+    //
+    Object.values(request.blockNameMapping)
+
 logger.error("dwdwdw", request)
     logger.info('Preparing Google Gemini request', {
-      model: request.model || 'gemini-2.5-pro',
+      model: request.model || 'gemini-2.5-flash',
       hasSystemPrompt: !!request.systemPrompt,
       hasMessages: !!request.messages?.length,
       hasTools: !!request.tools?.length,
@@ -232,6 +235,8 @@ logger.error("dwdwdw", request)
       hasResponseFormat: !!request.responseFormat,
       streaming: !!request.stream,
     })
+
+    logger.warn("request", request)
 
     // Start execution timer for the entire provider execution
     const providerStartTime = Date.now()
@@ -241,7 +246,7 @@ logger.error("dwdwdw", request)
       // Convert messages to Gemini format
       const { contents, tools, systemInstruction } = convertToGeminiFormat(request)
 
-      const requestedModel = request.model || 'gemini-2.5-pro'
+      const requestedModel = request.model || 'gemini-2.5-flash'
 
       // Build request payload
       const payload: any = {

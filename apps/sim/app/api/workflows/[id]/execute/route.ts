@@ -284,8 +284,8 @@ export async function executeWorkflow(
 
     const workflowVariables = (workflow.variables as Record<string, any>) || {}
 
-    if (input?.context) {
-      Object.entries(input.context).forEach(([key, value]) => {
+    if (input?.workflowVariables) {
+      Object.entries(input.workflowVariables).forEach(([key, value]) => {
         const workflowVariableContext =  Object.values(workflowVariables).find(item => item.name === key)
         if (workflowVariableContext) {
           workflowVariableContext.value = value

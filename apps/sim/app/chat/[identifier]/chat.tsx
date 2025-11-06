@@ -339,9 +339,9 @@ export default function ChatClient({ identifier }: { identifier: string }) {
 
     try {
       let params = new URLSearchParams(document.location.search);
-      const context: any = {}
+      const workflowVariables: any = {}
       for (let [key, value] of params.entries()) {
-        context[key] = value
+        workflowVariables[key] = value
       }
 
       // Send structured payload to maintain chat context
@@ -351,7 +351,7 @@ export default function ChatClient({ identifier }: { identifier: string }) {
             ? userMessage.content
             : JSON.stringify(userMessage.content),
         conversationId,
-        context
+        workflowVariables
       }
 
       // Add files if present (convert to base64 for JSON transmission)
