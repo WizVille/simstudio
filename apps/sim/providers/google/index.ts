@@ -345,13 +345,32 @@ logger.error("dwdwdw", request)
         })
       }
 
-      const headers = {
+      let headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
         'Helicone-Auth': `Bearer ${env.NEXT_PUBLIC_HELICONE_SA}`,
         'Helicone-Target-URL': googleBaseUrl,
+        'Helicone-User-Id': 'sandbox',
         'User-Agent': 'node-fetch'
       };
+
+      const heliconeHeaders = Object.values(request?.workflowVariables || {}).reduce((acc, variable) => {
+        if (variable.name.startsWith('helicone')) {
+          acc[variable.name.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-')] = variable.value
+          return acc;
+        }
+      }, {})
+
+      headers = { ...headers, ...heliconeHeaders }
+
+      const conversationId = findValueByKey(request.blockData, "conversationId")
+      if (conversationId) {
+        headers = { ...headers, ...{
+          "Helicone-Session-Id": conversationId,
+          "Helicone-Session-Path": "/chat",
+          "Helicone-Session-Name": `${headers['Helicone-User-Id'] || 'sandbox'}`
+        } }
+      }
 
       // payload.generationConfig.maxOutputTokens = 1000;
       payload.generationConfig.thinkingConfig = { thinkingBudget: 0 }
@@ -1252,4 +1271,31 @@ const getAccessToken = async (): Promise<string> => {
     logger.error('Failed to get access token:', error)
     throw error
   }
+}
+
+function findValueByKey(obj, keyToFind) {
+  // Check if obj is not an object or is null, or is an array
+  // (We handle array elements in the loop)
+  if (typeof obj !== 'object' || obj === null) {
+    return undefined;
+  }
+
+  // Base case: Check if the key exists in the current object
+  if (keyToFind in obj) {
+    return obj[keyToFind];
+  }
+
+  // Recursive step: Iterate over all values (for objects) or elements (for arrays)
+  for (const value of Object.values(obj)) {
+    // Recurse into the nested value
+    const result = findValueByKey(value, keyToFind);
+
+    // If the recursive call found the value, return it immediately
+    if (result !== undefined) {
+      return result;
+    }
+  }
+
+  // Not found in this object or any of its children
+  return undefined;
 }
