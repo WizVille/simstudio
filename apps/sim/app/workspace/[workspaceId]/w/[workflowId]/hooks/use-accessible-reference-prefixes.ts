@@ -27,8 +27,10 @@ export function useAccessibleReferencePrefixes(blockId?: string | null): Set<str
     const accessibleIds = new Set<string>(ancestorIds)
     accessibleIds.add(blockId)
 
-    const starterBlock = Object.values(blocks).find((block) => block.type === 'starter')
-    if (starterBlock) {
+    const starterBlock = Object.values(blocks).find(
+      (block) => block.type === 'starter' || block.type === 'start_trigger'
+    )
+    if (starterBlock && ancestorIds.includes(starterBlock.id)) {
       accessibleIds.add(starterBlock.id)
     }
 

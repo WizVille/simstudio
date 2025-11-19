@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { getEnv, isTruthy } from '@/lib/env'
-import { OutputSelect } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/chat/components/output-select/output-select'
+import { OutputSelect } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/chat/components/output-select/output-select'
 
 interface ExampleCommandProps {
   command: string
@@ -196,7 +196,7 @@ export function ExampleCommand({
                       <ChevronDown className='ml-1 h-3 w-3 flex-shrink-0' />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align='end'>
+                  <DropdownMenuContent align='end' className='z-[10000050]'>
                     <DropdownMenuItem
                       className='cursor-pointer'
                       onClick={() => setExampleType('execute')}

@@ -17,7 +17,6 @@ import {
 } from '@/components/ui'
 import {
   ApiEndpoint,
-  ApiKey,
   DeployStatus,
   ExampleCommand,
 } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/components/deploy-modal/components/deployment-info/components'
@@ -46,6 +45,7 @@ interface DeploymentInfoProps {
   getInputFormatExample?: (includeStreaming?: boolean) => string
   selectedStreamingOutputs: string[]
   onSelectedStreamingOutputsChange: (outputs: string[]) => void
+  onLoadDeploymentComplete: () => void
 }
 
 export function DeploymentInfo({
@@ -61,6 +61,7 @@ export function DeploymentInfo({
   getInputFormatExample,
   selectedStreamingOutputs,
   onSelectedStreamingOutputsChange,
+  onLoadDeploymentComplete,
 }: DeploymentInfoProps) {
   const [isViewingDeployed, setIsViewingDeployed] = useState(false)
 
@@ -114,7 +115,6 @@ export function DeploymentInfo({
       <div className='space-y-4 overflow-y-auto px-1'>
         <div className='space-y-4'>
           <ApiEndpoint endpoint={deploymentInfo.endpoint} />
-          <ApiKey apiKey={deploymentInfo.apiKey} />
           <ExampleCommand
             command={deploymentInfo.exampleCommand}
             apiKey={deploymentInfo.apiKey}
@@ -176,6 +176,7 @@ export function DeploymentInfo({
           needsRedeployment={deploymentInfo.needsRedeployment}
           activeDeployedState={deployedState}
           workflowId={workflowId}
+          onLoadDeploymentComplete={onLoadDeploymentComplete}
         />
       )}
     </>

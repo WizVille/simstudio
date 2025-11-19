@@ -25,7 +25,6 @@ const mockWorkflowBlocks = {
   positionY: 'positionY',
   enabled: 'enabled',
   horizontalHandles: 'horizontalHandles',
-  isWide: 'isWide',
   height: 'height',
   subBlocks: 'subBlocks',
   outputs: 'outputs',
@@ -71,6 +70,12 @@ vi.doMock('drizzle-orm', () => ({
   eq: vi.fn((field, value) => ({ field, value, type: 'eq' })),
   and: vi.fn((...conditions) => ({ type: 'and', conditions })),
   desc: vi.fn((field) => ({ field, type: 'desc' })),
+  sql: vi.fn((strings, ...values) => ({
+    strings,
+    values,
+    type: 'sql',
+    _: { brand: 'SQL' },
+  })),
 }))
 
 vi.doMock('@/lib/logs/console/logger', () => ({
@@ -94,7 +99,6 @@ const mockBlocksFromDb = [
     positionY: 100,
     enabled: true,
     horizontalHandles: true,
-    isWide: false,
     advancedMode: false,
     triggerMode: false,
     height: 150,
@@ -113,12 +117,63 @@ const mockBlocksFromDb = [
     positionY: 100,
     enabled: true,
     horizontalHandles: true,
-    isWide: true,
     height: 200,
     subBlocks: {},
     outputs: {},
     data: { parentId: 'loop-1', extent: 'parent' },
     parentId: 'loop-1',
+    extent: 'parent',
+  },
+  {
+    id: 'loop-1',
+    workflowId: mockWorkflowId,
+    type: 'loop',
+    name: 'Loop Container',
+    positionX: 50,
+    positionY: 50,
+    enabled: true,
+    horizontalHandles: true,
+    advancedMode: false,
+    triggerMode: false,
+    height: 250,
+    subBlocks: {},
+    outputs: {},
+    data: { width: 500, height: 300, loopType: 'for', count: 5 },
+    parentId: null,
+    extent: null,
+  },
+  {
+    id: 'parallel-1',
+    workflowId: mockWorkflowId,
+    type: 'parallel',
+    name: 'Parallel Container',
+    positionX: 600,
+    positionY: 50,
+    enabled: true,
+    horizontalHandles: true,
+    advancedMode: false,
+    triggerMode: false,
+    height: 250,
+    subBlocks: {},
+    outputs: {},
+    data: { width: 500, height: 300, parallelType: 'count', count: 3 },
+    parentId: null,
+    extent: null,
+  },
+  {
+    id: 'block-3',
+    workflowId: mockWorkflowId,
+    type: 'api',
+    name: 'Parallel Child',
+    positionX: 650,
+    positionY: 150,
+    enabled: true,
+    horizontalHandles: true,
+    height: 200,
+    subBlocks: {},
+    outputs: {},
+    data: { parentId: 'parallel-1', extent: 'parent' },
+    parentId: 'parallel-1',
     extent: 'parent',
   },
 ]
@@ -169,7 +224,6 @@ const mockWorkflowState: WorkflowState = {
       outputs: { result: { type: 'string' } },
       enabled: true,
       horizontalHandles: true,
-      isWide: false,
       height: 150,
       data: { width: 350 },
     },
@@ -182,9 +236,44 @@ const mockWorkflowState: WorkflowState = {
       outputs: {},
       enabled: true,
       horizontalHandles: true,
-      isWide: true,
       height: 200,
       data: { parentId: 'loop-1', extent: 'parent' },
+    },
+    'loop-1': {
+      id: 'loop-1',
+      type: 'loop',
+      name: 'Loop Container',
+      position: { x: 200, y: 50 },
+      subBlocks: {},
+      outputs: {},
+      enabled: true,
+      horizontalHandles: true,
+      height: 250,
+      data: { width: 500, height: 300, count: 5, loopType: 'for' },
+    },
+    'parallel-1': {
+      id: 'parallel-1',
+      type: 'parallel',
+      name: 'Parallel Container',
+      position: { x: 600, y: 50 },
+      subBlocks: {},
+      outputs: {},
+      enabled: true,
+      horizontalHandles: true,
+      height: 250,
+      data: { width: 500, height: 300, parallelType: 'count', count: 3 },
+    },
+    'block-3': {
+      id: 'block-3',
+      type: 'api',
+      name: 'Parallel Child',
+      position: { x: 650, y: 150 },
+      subBlocks: {},
+      outputs: {},
+      enabled: true,
+      horizontalHandles: true,
+      height: 180,
+      data: { parentId: 'parallel-1', extent: 'parent' },
     },
   },
   edges: [
@@ -267,7 +356,6 @@ describe('Database Helpers', () => {
         position: { x: 100, y: 100 },
         enabled: true,
         horizontalHandles: true,
-        isWide: false,
         height: 150,
         subBlocks: { input: { id: 'input', type: 'short-input' as const, value: 'test' } },
         outputs: { result: { type: 'string' } },
@@ -294,13 +382,15 @@ describe('Database Helpers', () => {
         iterations: 5,
         loopType: 'for',
         forEachItems: '',
+        doWhileCondition: '',
+        whileCondition: '',
       })
 
       // Verify parallels are transformed correctly
       expect(result?.parallels['parallel-1']).toEqual({
         id: 'parallel-1',
         nodes: ['block-3'],
-        count: 2,
+        count: 5,
         distribution: ['item1', 'item2'],
         parallelType: 'count',
       })
@@ -379,7 +469,6 @@ describe('Database Helpers', () => {
           positionY: 0,
           enabled: true,
           horizontalHandles: true,
-          isWide: false,
           height: 0,
           subBlocks: {},
           outputs: {},
@@ -433,6 +522,11 @@ describe('Database Helpers', () => {
     it('should successfully save workflow data to normalized tables', async () => {
       const mockTransaction = vi.fn().mockImplementation(async (callback) => {
         const tx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
           delete: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([]),
           }),
@@ -469,6 +563,11 @@ describe('Database Helpers', () => {
 
       const mockTransaction = vi.fn().mockImplementation(async (callback) => {
         const tx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
           delete: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([]),
           }),
@@ -525,6 +624,11 @@ describe('Database Helpers', () => {
 
       const mockTransaction = vi.fn().mockImplementation(async (callback) => {
         const tx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
           delete: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([]),
           }),
@@ -551,21 +655,36 @@ describe('Database Helpers', () => {
 
       await dbHelpers.saveWorkflowToNormalizedTables(mockWorkflowId, mockWorkflowState)
 
-      expect(capturedBlockInserts).toHaveLength(2)
-      expect(capturedBlockInserts[0]).toMatchObject({
-        id: 'block-1',
-        workflowId: mockWorkflowId,
-        type: 'starter',
-        name: 'Start Block',
-        positionX: '100',
-        positionY: '100',
-        enabled: true,
-        horizontalHandles: true,
-        isWide: false,
-        height: '150',
-        parentId: null,
-        extent: null,
-      })
+      expect(capturedBlockInserts).toHaveLength(5)
+      expect(capturedBlockInserts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'block-1',
+            workflowId: mockWorkflowId,
+            type: 'starter',
+            name: 'Start Block',
+            positionX: '100',
+            positionY: '100',
+            enabled: true,
+            horizontalHandles: true,
+            height: '150',
+            parentId: null,
+            extent: null,
+          }),
+          expect.objectContaining({
+            id: 'loop-1',
+            workflowId: mockWorkflowId,
+            type: 'loop',
+            parentId: null,
+          }),
+          expect.objectContaining({
+            id: 'parallel-1',
+            workflowId: mockWorkflowId,
+            type: 'parallel',
+            parentId: null,
+          }),
+        ])
+      )
 
       expect(capturedEdgeInserts).toHaveLength(1)
       expect(capturedEdgeInserts[0]).toMatchObject({
@@ -583,6 +702,48 @@ describe('Database Helpers', () => {
         workflowId: mockWorkflowId,
         type: 'loop',
       })
+    })
+
+    it('should regenerate missing loop and parallel definitions from block data', async () => {
+      let capturedSubflowInserts: any[] = []
+
+      const mockTransaction = vi.fn().mockImplementation(async (callback) => {
+        const tx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
+          delete: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+          insert: vi.fn().mockReturnValue({
+            values: vi.fn().mockImplementation((data) => {
+              if (data.length > 0 && (data[0].type === 'loop' || data[0].type === 'parallel')) {
+                capturedSubflowInserts = data
+              }
+              return Promise.resolve([])
+            }),
+          }),
+        }
+        return await callback(tx)
+      })
+
+      mockDb.transaction = mockTransaction
+
+      const staleWorkflowState = JSON.parse(JSON.stringify(mockWorkflowState)) as WorkflowState
+      staleWorkflowState.loops = {}
+      staleWorkflowState.parallels = {}
+
+      await dbHelpers.saveWorkflowToNormalizedTables(mockWorkflowId, staleWorkflowState)
+
+      expect(capturedSubflowInserts).toHaveLength(2)
+      expect(capturedSubflowInserts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'loop-1', type: 'loop' }),
+          expect.objectContaining({ id: 'parallel-1', type: 'parallel' }),
+        ])
+      )
     })
   })
 
@@ -644,6 +805,11 @@ describe('Database Helpers', () => {
     it('should successfully migrate workflow from JSON to normalized tables', async () => {
       const mockTransaction = vi.fn().mockImplementation(async (callback) => {
         const tx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
           delete: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([]),
           }),
@@ -687,6 +853,11 @@ describe('Database Helpers', () => {
 
       const mockTransaction = vi.fn().mockImplementation(async (callback) => {
         const tx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
           delete: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([]),
           }),
@@ -751,6 +922,11 @@ describe('Database Helpers', () => {
 
       const mockTransaction = vi.fn().mockImplementation(async (callback) => {
         const tx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
           delete: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([]),
           }),
@@ -772,19 +948,18 @@ describe('Database Helpers', () => {
     })
   })
 
-  describe('advancedMode persistence comparison with isWide', () => {
-    it('should load advancedMode property exactly like isWide from database', async () => {
+  describe('advancedMode persistence', () => {
+    it('should load advancedMode property from database', async () => {
       const testBlocks = [
         {
-          id: 'block-advanced-wide',
+          id: 'block-advanced',
           workflowId: mockWorkflowId,
           type: 'agent',
-          name: 'Advanced Wide Block',
+          name: 'Advanced Block',
           positionX: 100,
           positionY: 100,
           enabled: true,
           horizontalHandles: true,
-          isWide: true,
           advancedMode: true,
           height: 200,
           subBlocks: {},
@@ -794,35 +969,16 @@ describe('Database Helpers', () => {
           extent: null,
         },
         {
-          id: 'block-basic-narrow',
+          id: 'block-basic',
           workflowId: mockWorkflowId,
           type: 'agent',
-          name: 'Basic Narrow Block',
+          name: 'Basic Block',
           positionX: 200,
           positionY: 100,
           enabled: true,
           horizontalHandles: true,
-          isWide: false,
           advancedMode: false,
           height: 150,
-          subBlocks: {},
-          outputs: {},
-          data: {},
-          parentId: null,
-          extent: null,
-        },
-        {
-          id: 'block-advanced-narrow',
-          workflowId: mockWorkflowId,
-          type: 'agent',
-          name: 'Advanced Narrow Block',
-          positionX: 300,
-          positionY: 100,
-          enabled: true,
-          horizontalHandles: true,
-          isWide: false,
-          advancedMode: true,
-          height: 180,
           subBlocks: {},
           outputs: {},
           data: {},
@@ -850,18 +1006,12 @@ describe('Database Helpers', () => {
 
       expect(result).toBeDefined()
 
-      // Test all combinations of isWide and advancedMode
-      const advancedWideBlock = result?.blocks['block-advanced-wide']
-      expect(advancedWideBlock?.isWide).toBe(true)
-      expect(advancedWideBlock?.advancedMode).toBe(true)
+      // Test advancedMode persistence
+      const advancedBlock = result?.blocks['block-advanced']
+      expect(advancedBlock?.advancedMode).toBe(true)
 
-      const basicNarrowBlock = result?.blocks['block-basic-narrow']
-      expect(basicNarrowBlock?.isWide).toBe(false)
-      expect(basicNarrowBlock?.advancedMode).toBe(false)
-
-      const advancedNarrowBlock = result?.blocks['block-advanced-narrow']
-      expect(advancedNarrowBlock?.isWide).toBe(false)
-      expect(advancedNarrowBlock?.advancedMode).toBe(true)
+      const basicBlock = result?.blocks['block-basic']
+      expect(basicBlock?.advancedMode).toBe(false)
     })
 
     it('should handle default values for boolean fields consistently', async () => {
@@ -875,7 +1025,6 @@ describe('Database Helpers', () => {
           positionY: 100,
           enabled: true,
           horizontalHandles: true,
-          isWide: false, // Database default
           advancedMode: false, // Database default
           triggerMode: false, // Database default
           height: 150,
@@ -906,7 +1055,6 @@ describe('Database Helpers', () => {
 
       // All boolean fields should have their database default values
       const defaultsBlock = result?.blocks['block-with-defaults']
-      expect(defaultsBlock?.isWide).toBe(false)
       expect(defaultsBlock?.advancedMode).toBe(false)
       expect(defaultsBlock?.triggerMode).toBe(false)
     })
@@ -930,7 +1078,6 @@ describe('Database Helpers', () => {
         positionY: 100,
         enabled: true,
         horizontalHandles: true,
-        isWide: true,
         advancedMode: true, // User sets this to advanced mode
         height: 200,
         subBlocks: {
@@ -957,7 +1104,6 @@ describe('Database Helpers', () => {
         positionY: 100,
         enabled: true,
         horizontalHandles: true,
-        isWide: true,
         advancedMode: true, // Should be copied from original
         height: 200,
         subBlocks: {
@@ -1010,6 +1156,11 @@ describe('Database Helpers', () => {
       // Mock the transaction for save operation
       const mockTransaction = vi.fn().mockImplementation(async (callback) => {
         const mockTx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
           delete: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue(undefined),
           }),
@@ -1057,7 +1208,6 @@ describe('Database Helpers', () => {
         positionY: 100,
         enabled: true,
         horizontalHandles: true,
-        isWide: false,
         advancedMode: false, // Basic mode
         height: 150,
         subBlocks: { model: { id: 'model', type: 'select', value: 'gpt-4o' } },
@@ -1076,7 +1226,6 @@ describe('Database Helpers', () => {
         positionY: 100,
         enabled: true,
         horizontalHandles: true,
-        isWide: true,
         advancedMode: true, // Advanced mode
         height: 200,
         subBlocks: {
@@ -1111,8 +1260,6 @@ describe('Database Helpers', () => {
       expect(loadedState?.blocks['agent-advanced'].advancedMode).toBe(true)
 
       // Verify other properties are also preserved correctly
-      expect(loadedState?.blocks['agent-basic'].isWide).toBe(false)
-      expect(loadedState?.blocks['agent-advanced'].isWide).toBe(true)
     })
 
     it('should preserve advancedMode during workflow state round-trip', async () => {
@@ -1131,7 +1278,6 @@ describe('Database Helpers', () => {
             outputs: {},
             enabled: true,
             horizontalHandles: true,
-            isWide: true,
             advancedMode: true,
             height: 200,
             data: {},
@@ -1146,6 +1292,11 @@ describe('Database Helpers', () => {
       // Mock successful save
       const mockTransaction = vi.fn().mockImplementation(async (callback) => {
         const mockTx = {
+          select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([]),
+            }),
+          }),
           delete: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue(undefined),
           }),
@@ -1183,7 +1334,6 @@ describe('Database Helpers', () => {
                   positionY: 100,
                   enabled: true,
                   horizontalHandles: true,
-                  isWide: true,
                   advancedMode: true, // This should be preserved
                   height: 200,
                   subBlocks: {
@@ -1206,7 +1356,6 @@ describe('Database Helpers', () => {
       const loadedState = await dbHelpers.loadWorkflowFromNormalizedTables(mockWorkflowId)
       expect(loadedState).toBeDefined()
       expect(loadedState?.blocks['block-1'].advancedMode).toBe(true)
-      expect(loadedState?.blocks['block-1'].isWide).toBe(true)
     })
   })
 })
